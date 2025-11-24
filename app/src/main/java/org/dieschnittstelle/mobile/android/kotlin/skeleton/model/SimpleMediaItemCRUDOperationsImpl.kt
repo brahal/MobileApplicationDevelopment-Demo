@@ -18,7 +18,7 @@ class SimpleMediaItemCRUDOperationsImpl(private var items:MutableList<MediaItem>
     }
 
     override fun readItem(id: Long): MediaItem {
-       return items.find {it.myCount.toLong() == id}!!
+       return items.find {it.id.toLong() == id}!!
     }
 
     override fun updateItem(id: Long, item: MediaItem): MediaItem {

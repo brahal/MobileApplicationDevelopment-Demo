@@ -1,11 +1,20 @@
 package org.dieschnittstelle.mobile.android.kotlin.skeleton.model
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Serializer
 import kotlin.random.Random
 
-var itemCount = 0
+// var itemCount = 0L
+
+@Entity
+@Serializable
 class MediaItem (var title: String="direm", var src:String = "https://picsum.photos/75/75") {
     var createdOrModified = System.currentTimeMillis()
-    var myCount = itemCount++
+
+    @PrimaryKey(autoGenerate = true)
+    var id = 0L
 }
 
 fun createRandomMediaItem() : MediaItem {

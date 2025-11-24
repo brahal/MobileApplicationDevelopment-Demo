@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -24,7 +25,7 @@ import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
 
 @Composable
 fun ListItemView(myItem: MediaItem, onSelect:(MediaItem, (Boolean)->Unit)->Unit, onOptions:(MediaItem)->Unit, modifier: Modifier = Modifier) {
-    Log.i("ListItemView", "re(composing) for: ${myItem.title} as pos ${myItem.myCount}")
+    Log.i("ListItemView", "re(composing) for: ${myItem.title} as pos ${myItem.id}")
 
     //  val  myItemState = mutableStateOf(myItem)
     val createdOrUpdatedState = mutableStateOf(myItem.createdOrModified)
@@ -48,7 +49,7 @@ fun ListItemView(myItem: MediaItem, onSelect:(MediaItem, (Boolean)->Unit)->Unit,
                 .width(60.dp)
         )
         Column(modifier = modifier.weight(1f)) {
-            Text(myItem.title, fontSize = 30.sp)
+            Text(myItem.title, fontSize = 30.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(myItem.createdOrModified.toString(), fontSize = 15.sp)
             Text(createdOrUpdatedState.value.toString(), fontSize = 0.sp, modifier = modifier.height(0.dp))
         }
