@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
                     }
                     composable<MediaItem>() {backstackEntry ->
                         val selectedItem = backstackEntry.toRoute<MediaItem>()
-                        ReadviewScreen(navController, selectedItem)
+                        ReadviewScreen(navController, selectedItem, crudOperations)
                     }
                 }
             }

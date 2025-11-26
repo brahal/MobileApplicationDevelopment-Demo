@@ -15,18 +15,24 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.MediaAppScreens
+import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.IMediaItemCRUDOperations
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReadviewScreen(navController: NavHostController , item: MediaItem, modifier: Modifier = Modifier) {
+fun ReadviewScreen(navController: NavHostController , item: MediaItem, crudOperations: IMediaItemCRUDOperations, modifier: Modifier = Modifier) {
     Log.i("ReadviewScreen", "(re)composing for ${item.title}" )
-  //  Text(item.title, modifier)
+
+    val coroutineScope = rememberCoroutineScope()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -38,8 +44,13 @@ fun ReadviewScreen(navController: NavHostController , item: MediaItem, modifier:
                 title={Text(item.title)},
                 actions = {
                     IconButton({
-                        Log.i("ReadviewScreen Basma", "deleting ${item.title}")
-                        navController.popBackStack()
+                        Log.i("ReadviewScreen", "deleting ${item.title}")
+                        coroutineScope.launch(Dispatchers.IO) {
+                            crudOperations.deleteItem(item.id)
+                            coroutineScope.launch(Dispatchers.Main) {
+                                navController.popBackStack()
+                            }
+                        }
                     }) {
                         Icon(imageVector = Icons.Default.Delete,
                             contentDescription = "Delete",
