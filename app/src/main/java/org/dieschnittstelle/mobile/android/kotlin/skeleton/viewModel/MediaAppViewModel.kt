@@ -14,7 +14,20 @@ import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.createRandomMed
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.view.DialogMode
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.view.FilterMode
 
+
+enum class MainViewMode {
+    MEDIA,   // Listenansicht
+    MAP      // Kartenansicht
+}
+
 class MediaAppViewModel: ViewModel() {
+
+    // aktueller Hauptmodus
+    val mainViewMode = mutableStateOf(MainViewMode.MEDIA)
+
+    // Drawer offen / zu
+    val drawerOpen = mutableStateOf(false)
+
 
     // Daten
     val mediaItems = mutableStateListOf<MediaItem>()

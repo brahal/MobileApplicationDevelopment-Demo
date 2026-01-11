@@ -22,7 +22,6 @@ class MediaItem(
     @PrimaryKey(autoGenerate = true)
     var id = 0L
 
-
 }
 
 // node webserver.js
