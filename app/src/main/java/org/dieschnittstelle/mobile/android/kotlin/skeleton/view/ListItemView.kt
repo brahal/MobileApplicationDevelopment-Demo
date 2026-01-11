@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.ImageStorage
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
 
 @Composable
@@ -29,6 +30,7 @@ fun ListItemView(myItem: MediaItem, onSelect:(MediaItem, (Boolean)->Unit)->Unit,
 
     //  val  myItemState = mutableStateOf(myItem)
     val createdOrUpdatedState = mutableStateOf(myItem.createdOrModified)
+
     Row(modifier = Modifier
         .clickable(onClick = {
             onSelect.invoke(myItem) {
@@ -50,18 +52,25 @@ fun ListItemView(myItem: MediaItem, onSelect:(MediaItem, (Boolean)->Unit)->Unit,
         )
         Column(modifier = modifier.weight(1f)) {
             Text(myItem.title, fontSize = 30.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Badge (FRM2 #5)
+            val badgeText = if (myItem.imageStorage == ImageStorage.REMOTE) "REMOTE" else "LOCAL"
+            val badgeColor = if (myItem.imageStorage == ImageStorage.REMOTE) Color(0xFF1DB954) else Color(0xFF9E9E9E)
+            Text(
+                text = badgeText,
+                fontSize = 11.sp,
+                color = badgeColor,
+                modifier = Modifier.padding(start = 8.dp)
+            )
             Text(myItem.createdOrModified.toString(), fontSize = 15.sp)
             Text(createdOrUpdatedState.value.toString(), fontSize = 0.sp, modifier = modifier.height(0.dp))
         }
 
         IconButton(onClick = {
-            //    Log.i("ListItemView", "onclick() on ${myItem}")
-            //  myItem.createdOrModified = System.currentTimeMillis()
             onOptions.invoke(myItem)
         }
         ) {
             Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Options",
-                tint = Color.DarkGray,
+                tint = Color.White,
                 modifier = modifier.size(40.dp)
             )
         }

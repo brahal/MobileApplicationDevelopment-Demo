@@ -1,13 +1,28 @@
 package org.dieschnittstelle.mobile.android.kotlin.skeleton.view
 
+import android.content.Intent
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -15,8 +30,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
@@ -31,7 +52,24 @@ import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
 fun ReadviewScreen(navController: NavHostController , item: MediaItem, crudOperations: IMediaItemCRUDOperations, modifier: Modifier = Modifier) {
     Log.i("ReadviewScreen", "(re)composing for ${item.title}" )
 
+    // um das Bild ändern zu können
+    val imgScrState = remember { mutableStateOf(item.src) }
+
+    val isDirtyState = remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    //mit rememberLauncherForActivityResult können wir andere Activity aufrufen
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        Log.i("ReadviewScreen", "got $uri" )
+        context.contentResolver.takePersistableUriPermission(uri!!, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        imgScrState.value = uri.toString()
+        isDirtyState.value = true
+        item.src = imgScrState.value
+    }
+
     val coroutineScope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
@@ -43,6 +81,30 @@ fun ReadviewScreen(navController: NavHostController , item: MediaItem, crudOpera
                 },
                 title={Text(item.title)},
                 actions = {
+                    if (isDirtyState.value) {
+                        IconButton({
+                            coroutineScope.launch(Dispatchers.IO) {
+                                crudOperations.updateItem(item.id, item)
+                                coroutineScope.launch(Dispatchers.Main) {
+                                    navController.popBackStack()
+                                }
+                            }
+                        }) {
+                            Icon(imageVector = Icons.Default.Done,
+                                contentDescription = "Save Media Item",
+                                modifier = modifier.size(35.dp))
+                        }
+                    }
+
+                    IconButton({
+                        // Will damit nur auf Bilder zugreifen
+                        pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }) {
+                        Icon(imageVector = Icons.Default.AddCircle,
+                            contentDescription = "Select Image",
+                            modifier = modifier.size(35.dp))
+                    }
+
                     IconButton({
                         Log.i("ReadviewScreen", "deleting ${item.title}")
                         coroutineScope.launch(Dispatchers.IO) {
@@ -59,12 +121,45 @@ fun ReadviewScreen(navController: NavHostController , item: MediaItem, crudOpera
                 },
                 modifier=modifier
             )
+        },
+        bottomBar = {
+            BottomAppBar(
+                containerColor = Color.Black,
+                tonalElevation = 0.dp
+            ) {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Zurück",
+                        tint = Color.White
+                    )
+                }
+            }
         }
     ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color.Black)
+                // ggf. vertikales Scrolling (wenn Bild höher ist)
+                .verticalScroll(scrollState),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            AsyncImage(
+                model = item.src,
+                contentDescription = item.title,
+                contentScale = ContentScale.Fit,   // kein Abschneiden
+                modifier = Modifier
+                    .fillMaxWidth()                // volle Breite
+                    .aspectRatio(4f / 3f)              // ⭐ WICHTIG
 
-        AsyncImage(model=item.src,
-            contentDescription = item.title,
-            modifier.padding(innerPadding).fillMaxWidth())
+            )
+//        AsyncImage(model=imgScrState.value,
+//            contentDescription = item.title,
+//            modifier.padding(innerPadding).fillMaxWidth())
 
+
+        }
     }
 }

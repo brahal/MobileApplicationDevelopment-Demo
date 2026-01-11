@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,45 +24,40 @@ import org.dieschnittstelle.mobile.android.kotlin.skeleton.view.OverviewScreen
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.RoomLocalMediaItemCRUDOperationsImpl
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.createRandomMediaItem
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.ui.theme.MADDemoTheme
+import org.dieschnittstelle.mobile.android.kotlin.skeleton.view.MapScreen
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.view.ReadviewScreen
+import org.dieschnittstelle.mobile.android.kotlin.skeleton.viewModel.MediaAppViewModel
 
-enum class MediaAppScreens {OVERVIEW, READVIEW}
+enum class MediaAppScreens {OVERVIEW, READVIEW, MapView}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
       //  enableEdgeToEdge()
 
-        val usename = mutableStateOf("MAD")
-
-        val mediaItems = mutableStateListOf<MediaItem>()
-        val crudOperations = RoomLocalMediaItemCRUDOperationsImpl(this,mediaItems) //SimpleMediaItemCRUDOperationsImpl(mediaItems)
+        val viewModel: MediaAppViewModel by viewModels()
+        viewModel.crudOperations = RoomLocalMediaItemCRUDOperationsImpl(this,viewModel.mediaItems) //SimpleMediaItemCRUDOperationsImpl(mediaItems)
 
         setContent {
             val navController = rememberNavController()
 
-            MADDemoTheme {
+            MADDemoTheme() {
                 NavHost(
                     navController = navController,
                     startDestination = MediaAppScreens.OVERVIEW.name,
                 ) {
                     composable(MediaAppScreens.OVERVIEW.name) {
-                        OverviewScreen(navController,mediaItems, crudOperations)
+                        OverviewScreen(navController,viewModel)
                     }
                     composable<MediaItem>() {backstackEntry ->
                         val selectedItem = backstackEntry.toRoute<MediaItem>()
-                        ReadviewScreen(navController, selectedItem, crudOperations)
+                        ReadviewScreen(navController, selectedItem, viewModel.crudOperations)
+                    }
+                    composable(MediaAppScreens.MapView.name) {
+                        MapScreen()
                     }
                 }
             }
         }
     }
 }
-
-
-/* @Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MADDemoTheme {
-        Greeting("MAD")
-    }
-} */
