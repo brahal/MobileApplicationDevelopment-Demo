@@ -2,8 +2,10 @@ package org.dieschnittstelle.mobile.android.kotlin.skeleton.viewModel
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mapbox.maps.CameraOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.IMediaItemCRUDOperations
@@ -25,10 +27,6 @@ class MediaAppViewModel: ViewModel() {
     // aktueller Hauptmodus
     val mainViewMode = mutableStateOf(MainViewMode.MEDIA)
 
-    // Drawer offen / zu
-    val drawerOpen = mutableStateOf(false)
-
-
     // Daten
     val mediaItems = mutableStateListOf<MediaItem>()
 
@@ -37,11 +35,19 @@ class MediaAppViewModel: ViewModel() {
 
     // Dialog Zustand
     val createEditDialogShown = mutableStateOf(false)
-   val dialogMode = mutableStateOf(DialogMode.CREATE)
-   val itemToBeEdited = mutableStateOf<MediaItem?>(null)
-   val progressDialogShown = mutableStateOf(false)
+    val dialogMode = mutableStateOf(DialogMode.CREATE)
+    val itemToBeEdited = mutableStateOf<MediaItem?>(null)
+    val progressDialogShown = mutableStateOf(false)
+    val deleteConfirmDialogShown = mutableStateOf(false)
     // Filter
     val filterMode = mutableStateOf(FilterMode.ALL)
+
+    // Map
+    val selectedMapItem = mutableStateOf<MediaItem?>(null)
+
+    // Map-Zustand
+    var mapCameraInitialized = mutableStateOf(false)
+
 
     fun loadData() {
         progressDialogShown.value = true

@@ -62,6 +62,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation.layout)
+    implementation(libs.androidx.compose.ui.test)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.appcompat.resources)
 
 
     testImplementation(libs.junit)
@@ -94,5 +97,7 @@ dependencies {
     implementation(libs.androidx.room.paging)
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 
 }

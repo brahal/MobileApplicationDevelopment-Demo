@@ -37,7 +37,7 @@ fun ListView(mediaItems: MutableList<MediaItem>, scrollToEnd: MutableState<Boole
                 onOptions = onOptions,
                 modifier = Modifier)
             HorizontalDivider(
-                thickness = 2.dp,
+                thickness = 3.dp,
                 color = Color(0xFF2C2C2C)
             )
         }

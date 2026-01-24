@@ -9,6 +9,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,6 +23,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.IMediaItemCRUDOperations
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
+import org.dieschnittstelle.mobile.android.kotlin.skeleton.viewModel.MediaAppViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,32 +32,36 @@ fun ActionDialog(
     createDialogShown: MutableState<Boolean>,
     dialogMode: MutableState<DialogMode>,
     itemToBeEdited: MediaItem,
+    viewModel: MediaAppViewModel,
     crudOperations: IMediaItemCRUDOperations,
     modifier: Modifier = Modifier
 ) {
 
+    // CoroutineScope für asynchrone Operationen
     val scope = rememberCoroutineScope()
 
+
+    // Wenn das Dialog-Flag false ist, wird gar nichts gerendert
     if (!actionDialogShown.value) return
 
     Dialog(
-        onDismissRequest = { actionDialogShown.value = false },
+        onDismissRequest = { actionDialogShown.value = false }, // Schließen bei Zurück oder Außenklick
         properties = DialogProperties(dismissOnClickOutside = true, dismissOnBackPress = true)
     ) {
-        // Hintergrund (Scrim) + Klick außerhalb schließt
+        // Box dient als halbtransparenter Hintergrund
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.15f))
-                .clickable { actionDialogShown.value = false },
+                .background(Color.Black.copy(alpha = 0.15f)) // Abduklung der Liste
+                .clickable { actionDialogShown.value = false }, // Klick außerhalb schlißt Dialog
             contentAlignment = Alignment.Center
         ) {
-            // Menü-Panel oben links
+            // Menü-Panel selbst
             Surface(
                 modifier = Modifier
-                    .padding(start = 12.dp, top = 46.dp) // 👈 Position wie Screenshot
+                    .padding(start = 12.dp, top = 46.dp)
                     .width(240.dp)
-                    .clickable(enabled = false) {},      // Klick im Panel schließt nicht
+                    .clickable(enabled = false) {}, // Klicks im Menü sollen NICHT den Dialog schließen
                 color = Color(0xFF333333),
                 tonalElevation = 0.dp
             ) {
@@ -76,17 +83,16 @@ fun ActionDialog(
 
                     MenuRow("Löschen") {
                         actionDialogShown.value = false
-                        scope.launch(Dispatchers.IO) {
-                            crudOperations.deleteItem(itemToBeEdited.id)
-                        }
+                        viewModel.deleteConfirmDialogShown.value = true
+
                     }
 
                     HorizontalDivider(thickness = 1.dp, color = Color(0xFF404040))
 
                     MenuRow("Editieren") {
-                        actionDialogShown.value = false
-                        dialogMode.value = DialogMode.EDIT
-                        createDialogShown.value = true
+                        actionDialogShown.value = false  // Aktionsmenü schließen
+                        dialogMode.value = DialogMode.EDIT  // Dialogmodus auf EDIT setzen
+                        createDialogShown.value = true  // Create/Edit-Dialog öffnen
                     }
                 }
             }
@@ -105,45 +111,3 @@ private fun MenuRow(label: String, onClick: () -> Unit) {
         Text(text = label, color = Color.White, fontSize = 16.sp)
     }
 }
-
-//    ModalBottomSheet(
-//        onDismissRequest = {
-//            actionDialogShown.value = false
-//        },
-//        sheetState = sheetState
-//    ) {
-//        Column {
-//            Text(itemToBeEdited.title, fontSize = 30.sp, modifier = modifier.padding(12.dp))
-//            HorizontalDivider(modifier = modifier, thickness = 3.dp)
-//            Row(modifier = modifier
-//                .fillMaxWidth()
-//                .clickable {
-//                    sheetCoroutineScope.launch() {
-//                        sheetState.hide()
-//                    }.invokeOnCompletion {
-//                        actionDialogShown.value = false
-//                        editDialogShown.value = true
-//                    }
-//
-//                }) {
-//                Text("Edit", fontSize = 30.sp, modifier = modifier.padding(12.dp))
-//            }
-//            Row(modifier = modifier
-//                .fillMaxWidth()
-//                .clickable {
-//                    sheetCoroutineScope.launch(Dispatchers.IO) {
-//                        crudOperations.deleteItem(itemToBeEdited.id)
-//                    }.invokeOnCompletion {
-//                        sheetCoroutineScope.launch() {
-//                            sheetState.hide()
-//                            actionDialogShown.value = false
-//                        }
-//                    }
-//
-//
-//                }) {
-//                Text("Delete", fontSize = 30.sp, modifier = modifier.padding(12.dp))
-//            }
-//        }
-//    }
-//}

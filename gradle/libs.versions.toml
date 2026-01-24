@@ -15,6 +15,9 @@ navigationCompose = "2.9.4"
 roomCompiler = "2.8.1"
 material3 = "1.4.0"
 foundationLayout = "1.10.0"
+uiTest = "1.10.1"
+foundation = "1.10.1"
+appcompatResources = "1.7.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -45,6 +48,9 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 maps-compose-ndk27 = { module = "com.mapbox.extension:maps-compose-ndk27", version.ref = "mapsComposeNdk27" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
+androidx-compose-ui-test = { group = "androidx.compose.ui", name = "ui-test", version.ref = "uiTest" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
+androidx-appcompat-resources = { group = "androidx.appcompat", name = "appcompat-resources", version.ref = "appcompatResources" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

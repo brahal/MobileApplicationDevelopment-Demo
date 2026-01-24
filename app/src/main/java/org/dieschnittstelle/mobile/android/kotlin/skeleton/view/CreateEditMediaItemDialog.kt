@@ -1,7 +1,9 @@
 package org.dieschnittstelle.mobile.android.kotlin.skeleton.view
 
+import android.R
 import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -18,10 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+import androidx.exifinterface.media.ExifInterface
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -52,11 +56,15 @@ fun CreateEditMediaItemDialog(
     // ---- Initialwerte
     val initialTitle = remember(mode, itemToEdit?.id) { itemToEdit?.title.orEmpty() }
     val initialSrc = remember(mode, itemToEdit?.id) { itemToEdit?.src.orEmpty() }
-    val initialStorage = remember(mode, itemToEdit?.id) { itemToEdit?.imageStorage ?: ImageStorage.LOCAL }
+    val initialStorage =
+        remember(mode, itemToEdit?.id) { itemToEdit?.imageStorage ?: ImageStorage.LOCAL }
 
     var title by remember(mode, itemToEdit?.id) { mutableStateOf(initialTitle) }
     var src by remember(mode, itemToEdit?.id) { mutableStateOf(initialSrc) }
     var storage by remember(mode, itemToEdit?.id) { mutableStateOf(initialStorage) }
+
+    var latitude by remember { mutableStateOf<Double?>(null) }
+    var longitude by remember { mutableStateOf<Double?>(null) }
 
     // Wenn REMOTE gewählt wird, brauchen wir für Upload eine lokale URI als Quelle
     var pickedLocalUri by remember(mode, itemToEdit?.id) { mutableStateOf<Uri?>(null) }
@@ -66,17 +74,20 @@ fun CreateEditMediaItemDialog(
     var busy by remember { mutableStateOf(false) }
     var uploadError by remember { mutableStateOf<String?>(null) }
 
+
+
     val pickImage = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
 
-        // Persistente Berechtigung (nice-to-have)
+        // Persistente Berechtigung
         try {
             context.contentResolver.takePersistableUriPermission(
                 uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
-        } catch (_: SecurityException) {}
+        } catch (_: SecurityException) {
+        }
 
         pickedLocalUri = uri
         imageError = false
@@ -85,6 +96,46 @@ fun CreateEditMediaItemDialog(
         // - LOCAL: direkt content:// anzeigen
         // - REMOTE: Vorschau auch lokal anzeigen (content://), Upload passiert erst beim Speichern
         src = uri.toString()
+
+        // Standortdaten MAP2
+
+        val inputStreamExif = context.contentResolver.openInputStream(uri)
+        val exif = inputStreamExif?.let { ExifInterface(it) }
+        val latLong = exif?.latLong
+        if (latLong != null) {
+            latitude = latLong[0]
+            longitude = latLong[1]
+            Log.i("CreateEditDialog", "EXIF GPS: $latitude / $longitude")
+        } else {
+            val (randLat, randLng) = randomDefaultLocation()
+            latitude = randLat
+            longitude = randLng
+            Log.i("CreateEditDialog", "No EXIF GPS found")
+        }
+
+        inputStreamExif?.close()
+
+        // Dateiname auslesen
+        if (title.isBlank()) {
+            val cursor = context.contentResolver.query(
+                uri,
+                null,
+                null,
+                null,
+                null
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val origfilename = it.getString(
+                        it.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME)
+                    )
+                    val autoTitle = origfilename.substringBeforeLast(".")
+                    title = autoTitle
+
+                    Log.i("CreateEditDialog", "Auto-Titel gesetzt: $autoTitle")
+                }
+            }
+        }
     }
 
     BasicAlertDialog(
@@ -109,7 +160,8 @@ fun CreateEditMediaItemDialog(
         ) {
             Text(
                 text = if (mode == DialogMode.CREATE) "NEUES MEDIUM" else "MEDIUM EDITIEREN",
-                fontSize = 14.sp,
+                color = Color.Black,
+                fontSize = 16.sp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFFE6E0F0))
@@ -148,7 +200,11 @@ fun CreateEditMediaItemDialog(
                 Spacer(Modifier.height(10.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Speicherung:", modifier = Modifier.padding(end = 8.dp))
+                    Text(
+                        "Speicherung:",
+                        modifier = Modifier.padding(end = 8.dp),
+                        color = Color.Black,
+                    )
                     SingleChoiceSegmentedButtonRow {
                         SegmentedButton(
                             selected = storage == ImageStorage.LOCAL,
@@ -183,7 +239,12 @@ fun CreateEditMediaItemDialog(
                     )
 
                     if (src.isBlank()) {
-                        Icon(Icons.Outlined.Image, contentDescription = null, tint = Color(0xFF6A6A6A), modifier = Modifier.size(42.dp))
+                        Icon(
+                            Icons.Outlined.Image,
+                            contentDescription = null,
+                            tint = Color(0xFF6A6A6A),
+                            modifier = Modifier.size(42.dp)
+                        )
                     }
                 }
 
@@ -243,7 +304,10 @@ fun CreateEditMediaItemDialog(
 
                                         val newItem = MediaItem(
                                             title = title.trim(),
-                                            src = finalSrc
+                                            src = finalSrc,
+                                            imageStorage = storage,
+                                            latitude = latitude,
+                                            longitude = longitude
                                         ).apply {
                                             imageStorage = storage
                                         }
@@ -253,14 +317,18 @@ fun CreateEditMediaItemDialog(
                                     } else {
                                         val current = itemToEdit ?: return@launch
 
-                                        val finalSrc = if (current.imageStorage == ImageStorage.REMOTE) {
-                                            // Anforderung 3: bei existierendem Item bleibt die Speicherart wie bei Erstellung
-                                            val localUri = pickedLocalUri
-                                            if (localUri != null) uploader.uploadImage(context.contentResolver, localUri) else current.src
-                                        } else {
-                                            // LOCAL: wenn neues Bild gewählt, ist src schon content://..., sonst bleibt es
-                                            src
-                                        }
+                                        val finalSrc =
+                                            if (current.imageStorage == ImageStorage.REMOTE) {
+                                                // Anforderung 3: bei existierendem Item bleibt die Speicherart wie bei Erstellung
+                                                val localUri = pickedLocalUri
+                                                if (localUri != null) uploader.uploadImage(
+                                                    context.contentResolver,
+                                                    localUri
+                                                ) else current.src
+                                            } else {
+                                                // LOCAL: wenn neues Bild gewählt, ist src schon content://..., sonst bleibt es
+                                                src
+                                            }
 
                                         current.title = title.trim()
                                         current.src = finalSrc
@@ -276,7 +344,10 @@ fun CreateEditMediaItemDialog(
                                 }
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1DB954), contentColor = Color.White)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1DB954),
+                            contentColor = Color.White
+                        )
                     ) {
                         Text(if (mode == DialogMode.CREATE) "HINZUFÜGEN" else "SPEICHERN")
                     }

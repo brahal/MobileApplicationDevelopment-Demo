@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.ImageStorage
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
+import org.dieschnittstelle.mobile.android.kotlin.skeleton.utils.DateUtils
 
 @Composable
 fun ListItemView(myItem: MediaItem, onSelect:(MediaItem, (Boolean)->Unit)->Unit, onOptions:(MediaItem)->Unit, modifier: Modifier = Modifier) {
@@ -46,22 +47,24 @@ fun ListItemView(myItem: MediaItem, onSelect:(MediaItem, (Boolean)->Unit)->Unit,
             contentDescription = myItem.title,
             contentScale = ContentScale.Crop,
             modifier = modifier
-                .padding(10.dp)
+                .padding(8.dp)
                 .height(60.dp)
                 .width(60.dp)
         )
         Column(modifier = modifier.weight(1f)) {
             Text(myItem.title, fontSize = 30.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            // Badge (FRM2 #5)
+
+            // FRM2 Anforderung 5
             val badgeText = if (myItem.imageStorage == ImageStorage.REMOTE) "REMOTE" else "LOCAL"
             val badgeColor = if (myItem.imageStorage == ImageStorage.REMOTE) Color(0xFF1DB954) else Color(0xFF9E9E9E)
+          // Local or Remote anzeige
             Text(
                 text = badgeText,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 color = badgeColor,
                 modifier = Modifier.padding(start = 8.dp)
             )
-            Text(myItem.createdOrModified.toString(), fontSize = 15.sp)
+            Text(DateUtils.formatDate(myItem.createdOrModified), fontSize = 18.sp)
             Text(createdOrUpdatedState.value.toString(), fontSize = 0.sp, modifier = modifier.height(0.dp))
         }
 

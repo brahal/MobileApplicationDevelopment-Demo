@@ -19,15 +19,18 @@ class RoomLocalMediaItemCRUDOperationsImpl(
 ) : IMediaItemCRUDOperations {
 
     // 1 -> 2: imageStorage hinzufügen (TEXT, default LOCAL)
-    private val MIGRATION_1_2 = object : Migration(1, 2) {
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL("ALTER TABLE MediaItem ADD COLUMN imageStorage TEXT NOT NULL DEFAULT 'LOCAL'")
+           // db.execSQL("ALTER TABLE MediaItem ADD COLUMN imageStorage TEXT NOT NULL DEFAULT 'LOCAL'")
+            db.execSQL("ALTER TABLE MediaItem ADD COLUMN latitude REAL")
+            db.execSQL("ALTER TABLE MediaItem ADD COLUMN longitude REAL")
         }
     }
 
     @Dao
     interface MediaItemDao {
 
+        //  Liest alle MediaItems aus der lokalen Datenbank.
         @Query("SELECT * FROM MediaItem")
         fun alleAuslesen(): List<MediaItem>
 
@@ -41,20 +44,23 @@ class RoomLocalMediaItemCRUDOperationsImpl(
         fun aktualisieren(item: MediaItem)
     }
 
-    @Database(entities = [MediaItem::class], version = 2)
+    // Room-Datenbankdefinition
+    @Database(entities = [MediaItem::class], version = 3)
     @TypeConverters(RoomConverters::class)
     abstract class MediaItemDatabase : RoomDatabase() {
         abstract fun mediaItemDao(): MediaItemDao
     }
 
+    // Aufbau der lokalen Datenbank
     private val db = Room.databaseBuilder(
         context,
         MediaItemDatabase::class.java,
         "mediaItem-db"
     )
-        .addMigrations(MIGRATION_1_2)
+        .addMigrations(MIGRATION_2_3)
         .build()
 
+    //  Zugriffspunkt auf das DAO.
     private val myDao: MediaItemDao = db.mediaItemDao()
 
     override fun createItem(item: MediaItem): MediaItem {
@@ -66,7 +72,7 @@ class RoomLocalMediaItemCRUDOperationsImpl(
 
     override fun readAllItems(): List<MediaItem> {
         items.clear() // Duplicate vermeiden
-        // Thread.sleep(3000)  // ⚠️ lieber entfernen, bremst nur
+        // Thread.sleep(3000)
         items.addAll(myDao.alleAuslesen())
         return items
     }
@@ -79,11 +85,15 @@ class RoomLocalMediaItemCRUDOperationsImpl(
         val itemInList = readItem(item.id)
         val indexOfItem = items.indexOf(itemInList)
 
-        // ✅ WICHTIG: imageStorage + src + title persistieren
+
         val itemCopy = MediaItem(
             title = item.title,
             src = item.src,
-            imageStorage = item.imageStorage
+            imageStorage = item.imageStorage,
+            latitude = item.latitude,
+            longitude = item.longitude
+
+
         ).apply {
             this.id = item.id
             this.createdOrModified = item.createdOrModified
@@ -98,7 +108,7 @@ class RoomLocalMediaItemCRUDOperationsImpl(
 
     override fun deleteItem(id: Long): Boolean {
         val itemToBeDeleted = readItem(id)
-        // Thread.sleep(1500)  // ⚠️ lieber entfernen
+        // Thread.sleep(1500)
         myDao.loeschen(itemToBeDeleted)
         items.remove(itemToBeDeleted)
         return true

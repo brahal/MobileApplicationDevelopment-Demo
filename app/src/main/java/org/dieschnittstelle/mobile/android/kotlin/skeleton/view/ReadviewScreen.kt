@@ -1,22 +1,24 @@
 package org.dieschnittstelle.mobile.android.kotlin.skeleton.view
 
-import android.content.Intent
+
+import LocationMap
+import androidx.exifinterface.media.ExifInterface
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -43,28 +45,85 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.dieschnittstelle.mobile.android.kotlin.skeleton.MediaAppScreens
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.IMediaItemCRUDOperations
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
+import java.io.File
+import java.io.FileOutputStream
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReadviewScreen(navController: NavHostController , item: MediaItem, crudOperations: IMediaItemCRUDOperations, modifier: Modifier = Modifier) {
-    Log.i("ReadviewScreen", "(re)composing for ${item.title}" )
+fun ReadviewScreen(
+    navController: NavHostController,
+    item: MediaItem,
+    crudOperations: IMediaItemCRUDOperations,
+    onMenuClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Log.i("ReadviewScreen", "(re)composing for ${item.title}")
 
     // um das Bild ändern zu können
     val imgScrState = remember { mutableStateOf(item.src) }
-
     val isDirtyState = remember { mutableStateOf(false) }
-
     val context = LocalContext.current
 
+
     //mit rememberLauncherForActivityResult können wir andere Activity aufrufen
-    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        Log.i("ReadviewScreen", "got $uri" )
-        context.contentResolver.takePersistableUriPermission(uri!!, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        imgScrState.value = uri.toString()
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        Log.i("ReadviewScreen", "got $uri")
+
+        // Access file metadata
+        val cursor = context.contentResolver.query(uri!!, null, null, null, null)
+        var filename = "${System.currentTimeMillis()}.jpg"
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val origfilename =
+                    it.getString(it.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+                val size = it.getLong(it.getColumnIndexOrThrow(OpenableColumns.SIZE))
+                Log.i("ReadviewScreen", "file has name got $origfilename and size $size")
+                filename = origfilename
+            }
+        }
+
+        // copy the file to the local files directory
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val file = File(context.filesDir, filename)
+        val outputStream = FileOutputStream(file)
+
+        // copy to the local stream
+        inputStream?.copyTo(outputStream)
+
+        inputStream?.close()
+        outputStream.close()
+
+        Log.i("ReadviewScreen", "successfully copied image to $file")
+
+        // context.contentResolver.takePersistableUriPermission(uri!!, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val localFile = "file://$file"
+        imgScrState.value = localFile
         isDirtyState.value = true
+
+        // --- Standortdaten aus EXIF lesen ---
+        val inputStreamExif = context.contentResolver.openInputStream(uri)
+        val exif = inputStreamExif?.let { ExifInterface(it) }
+
+        val latLong = exif?.latLong
+
+        val baseLat = 52.5200
+        val baseLng = 13.4050
+
+        val offset = (item.id % 10) * 0.001
+
+        if (latLong != null) {
+            item.latitude = latLong[0]
+            item.longitude = latLong[1]
+        } else {
+            // Default-Standort (z. B. Berlin)
+            item.latitude = baseLat + offset
+            item.longitude = baseLng + offset
+        }
+        inputStreamExif?.close()
+
         item.src = imgScrState.value
     }
 
@@ -75,11 +134,15 @@ fun ReadviewScreen(navController: NavHostController , item: MediaItem, crudOpera
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    Icon(imageVector = Icons.Default.Menu,
-                        contentDescription = "Menu",
-                        modifier = modifier.size(30.dp))
+                    IconButton(onClick = onMenuClick) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = "Menu",
+                            modifier = modifier.size(30.dp)
+                        )
+                    }
                 },
-                title={Text(item.title)},
+                title = { Text(item.title) },
                 actions = {
                     if (isDirtyState.value) {
                         IconButton({
@@ -90,19 +153,25 @@ fun ReadviewScreen(navController: NavHostController , item: MediaItem, crudOpera
                                 }
                             }
                         }) {
-                            Icon(imageVector = Icons.Default.Done,
+                            Icon(
+                                imageVector = Icons.Default.Done,
                                 contentDescription = "Save Media Item",
-                                modifier = modifier.size(35.dp))
+                                modifier = modifier.size(35.dp)
+                            )
                         }
                     }
 
                     IconButton({
                         // Will damit nur auf Bilder zugreifen
-                        pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        //  pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        //muss so geändert werden
+                        pickMedia.launch("image/*")
                     }) {
-                        Icon(imageVector = Icons.Default.AddCircle,
+                        Icon(
+                            imageVector = Icons.Default.AddCircle,
                             contentDescription = "Select Image",
-                            modifier = modifier.size(35.dp))
+                            modifier = modifier.size(35.dp)
+                        )
                     }
 
                     IconButton({
@@ -114,12 +183,14 @@ fun ReadviewScreen(navController: NavHostController , item: MediaItem, crudOpera
                             }
                         }
                     }) {
-                        Icon(imageVector = Icons.Default.Delete,
+                        Icon(
+                            imageVector = Icons.Default.Delete,
                             contentDescription = "Delete",
-                            modifier = modifier.size(35.dp))
+                            modifier = modifier.size(35.dp)
+                        )
                     }
                 },
-                modifier=modifier
+                modifier = modifier
             )
         },
         bottomBar = {
@@ -137,27 +208,35 @@ fun ReadviewScreen(navController: NavHostController , item: MediaItem, crudOpera
             }
         }
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(Color.Black)
-                // ggf. vertikales Scrolling (wenn Bild höher ist)
                 .verticalScroll(scrollState),
-            contentAlignment = Alignment.TopCenter
+            //contentAlignment = Alignment.TopCenter
         ) {
             AsyncImage(
-                model = item.src,
+                model = imgScrState.value,
                 contentDescription = item.title,
-                contentScale = ContentScale.Fit,   // kein Abschneiden
-                modifier = Modifier
-                    .fillMaxWidth()                // volle Breite
-                    .aspectRatio(4f / 3f)              // ⭐ WICHTIG
-
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth()
             )
-//        AsyncImage(model=imgScrState.value,
-//            contentDescription = item.title,
-//            modifier.padding(innerPadding).fillMaxWidth())
+            // Abstand
+            Spacer(modifier = Modifier.height(12.dp))
+            // KARTE – Anforderung 8
+            if (item.latitude != null && item.longitude != null) {
+                Spacer(modifier = Modifier.padding(8.dp))
+
+                LocationMap(
+                    latitude = item.latitude!!,
+                    longitude = item.longitude!!,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(horizontal = 16.dp)
+                )
+            }
 
 
         }
