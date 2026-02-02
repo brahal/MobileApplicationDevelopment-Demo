@@ -38,20 +38,22 @@ enum class MediaAppScreens { OVERVIEW, READVIEW, MapView }
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //  enableEdgeToEdge()
 
         val viewModel: MediaAppViewModel by viewModels()
+
         viewModel.crudOperations = RoomLocalMediaItemCRUDOperationsImpl(
             this,
             viewModel.mediaItems
         ) //SimpleMediaItemCRUDOperationsImpl(mediaItems)
 
+        // Einstiegspunkt für Jetpack Compose, ab hier wird die UI deklarativ aufgebaut
         setContent {
             val navController = rememberNavController()
             val drawerState = rememberDrawerState(DrawerValue.Closed)
             val scope = rememberCoroutineScope()
 
             MADDemoTheme() {
+                // Navigation Drawer als Seitenmenü
                 ModalNavigationDrawer(
                     drawerState = drawerState,
                     drawerContent = {
@@ -61,14 +63,11 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier.padding(16.dp),
                                 style = MaterialTheme.typography.titleMedium
                             )
-
                             NavigationDrawerItem(
                                 label = { Text("Medien") },
                                 selected = viewModel.mainViewMode.value == MainViewMode.MEDIA,
                                 onClick = {
-                                    // MAP1  Anforderung 3
                                     viewModel.mainViewMode.value = MainViewMode.MEDIA
-
                                     navController.navigate(MediaAppScreens.OVERVIEW.name) {
                                         popUpTo(navController.graph.startDestinationId) {
                                             inclusive = false
@@ -76,6 +75,7 @@ class MainActivity : ComponentActivity() {
                                         launchSingleTop = true
                                         restoreState = true
                                     }
+                                    // Drawer schließen erfolgt in einer Coroutine, da close() eine suspend-Funktion ist
                                     scope.launch { drawerState.close() }
                                 },
                                 icon = { Icon(Icons.Filled.List, contentDescription = "Medien") }
@@ -85,7 +85,6 @@ class MainActivity : ComponentActivity() {
                                 label = { Text("Karte") },
                                 selected = viewModel.mainViewMode.value == MainViewMode.MAP,
                                 onClick = {
-                                    // MAP1  Anforderung 3
                                     viewModel.mainViewMode.value = MainViewMode.MAP
                                     navController.navigate(MediaAppScreens.MapView.name) {
                                         popUpTo(navController.graph.startDestinationId) {
@@ -103,6 +102,7 @@ class MainActivity : ComponentActivity() {
                     }
                 )
                 {
+                    // NavHost definiert den Startpukt
                     NavHost(
                         navController = navController,
                         startDestination = MediaAppScreens.OVERVIEW.name,
@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
                         composable<MediaItem>() { backstackEntry ->
                             val selectedItem = backstackEntry.toRoute<MediaItem>()
                             ReadviewScreen(
-                                navController, selectedItem, viewModel.crudOperations,
+                                navController, selectedItem, viewModel.crudOperations, viewModel,
                                 onMenuClick = { scope.launch { drawerState.open() } }
                             )
                         }

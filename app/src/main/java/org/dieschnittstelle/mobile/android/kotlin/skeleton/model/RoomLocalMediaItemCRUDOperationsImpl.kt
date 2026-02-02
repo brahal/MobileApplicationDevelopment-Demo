@@ -13,6 +13,9 @@ import androidx.room.Update
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
+/**
+** Implementierung CRUD-Schnittstelle
+ **/
 class RoomLocalMediaItemCRUDOperationsImpl(
     context: Context,
     private var items: MutableList<MediaItem>

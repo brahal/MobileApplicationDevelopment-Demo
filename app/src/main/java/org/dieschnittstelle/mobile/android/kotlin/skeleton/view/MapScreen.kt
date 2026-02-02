@@ -10,18 +10,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.CoordinateBounds
 import com.mapbox.maps.EdgeInsets
-import com.mapbox.maps.MapView
-import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.ViewAnnotationAnchor
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
@@ -44,106 +43,78 @@ fun MapScreen(
     onMenuClick: () -> Unit
 ) {
 
-    // Beim Öffnen der MapScreen wird selectedMapItem zurückgesetzt
     LaunchedEffect(Unit) {
         viewModel.selectedMapItem.value = null
     }
 
     val context = LocalContext.current
-
     val items = viewModel.mediaItems
     val selectedItem by viewModel.selectedMapItem
 
-    // ---------- Marker Bitmap ----------
+
     val markerBitmap = remember {
         ResourcesCompat.getDrawable(context.resources, R.drawable.marker1, null)
             ?.toBitmap(70, 120)
     }
 
+    var mapVisible by remember { mutableStateOf(false) }
 
-    // ---------- Bounding Box ----------
-    val minLat = items.minOfOrNull { it.latitude ?: 52.52 } ?: 52.52
-    val maxLat = items.maxOfOrNull { it.latitude ?: 52.52 } ?: 52.52
-    val minLng = items.minOfOrNull { it.longitude ?: 13.405 } ?: 13.405
-    val maxLng = items.maxOfOrNull { it.longitude ?: 13.405 } ?: 13.405
-
-    val mapViewportState = rememberMapViewportState {
-        setCameraOptions {
-            center(
-                Point.fromLngLat(
-                    (minLng + maxLng) / 2,
-                    (minLat + maxLat) / 2
-                )
-            )
-            zoom(12.0)
-        }
-    }
-
-    val coordinateBounds = CoordinateBounds(
-        Point.fromLngLat(minLng, minLat),
-        Point.fromLngLat(maxLng, maxLat)
-    )
-
-    // ---------- UI ----------
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        containerColor = Color(0xFF181818),
+        contentColor = Color.White,
         topBar = {
             TopAppBar(
                 title = { Text("Karte") },
                 navigationIcon = {
                     IconButton(onClick = onMenuClick) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menü")
+                        Icon(Icons.Default.Menu, contentDescription = "Menü", modifier = Modifier.size(48.dp))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF2C2C2C),
                     titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 )
             )
         }
-    ) { innerPadding ->
+    ) { padding ->
 
         MapboxMap(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            mapViewportState = mapViewportState
+                .padding(padding)
+                .alpha(if (mapVisible) 1f else 0f)
         ) {
 
-            // ---------- Marker (PointAnnotation) ----------
+            // MARKER
             items.forEach { item ->
-                val lat = item.latitude ?: return@forEach
-                val lng = item.longitude ?: return@forEach
-
-                Log.i("MapScreen", "Marker ${item.title} @ $lat,$lng")
-
-                markerBitmap?.let { bitmap ->
-                    PointAnnotation(Point.fromLngLat(lng, lat)) {
-                        iconImage = IconImage(bitmap)
-                        interactionsState.onClicked {
-                            viewModel.selectedMapItem.value = item
-                            true
-                        }
+                Log.d(
+                    "MapCoords",
+                    "ID=${item.id}, title=${item.title}, lat=${item.latitude}, lon=${item.longitude}"
+                )
+                PointAnnotation(
+                    Point.fromLngLat(item.longitude!!, item.latitude!!)
+                ) {
+                    iconImage = IconImage(markerBitmap!!)
+                    interactionsState.onClicked {
+                        viewModel.selectedMapItem.value = item
+                        true
                     }
                 }
             }
 
-            //Callout (ViewAnnotation)
+            // CALLOUT
             selectedItem?.let { item ->
+                key(item.id) {
                 ViewAnnotation(
                     options = viewAnnotationOptions {
-                        geometry(
-                            Point.fromLngLat(
-                                item.longitude!!,
-                                item.latitude!!
-                            )
-                        )
+                        geometry(Point.fromLngLat(item.longitude!!, item.latitude!!))
                         annotationAnchor {
                             anchor(ViewAnnotationAnchor.BOTTOM)
                             offsetY(62.0)
                         }
-                        allowOverlap(true)
                     }
                 ) {
                     Card(
@@ -165,8 +136,8 @@ fun MapScreen(
                                         onSelect(item) { }
                                     },
                                 color = Color.Black,
-                                maxLines = 1,                     // 🔴 WICHTIG
-                                overflow = TextOverflow.Ellipsis // 🔴 WICHTIG
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
 
                             Icon(
@@ -183,25 +154,52 @@ fun MapScreen(
                     }
                 }
             }
+            }
 
-            MapEffect(items, selectedItem) { mapView ->
-                if (items.isEmpty()) return@MapEffect
+            MapEffect(items) { mapView ->
+                mapView.mapboxMap.subscribeMapLoaded {
 
-                val padding = if (selectedItem != null) {
-                    EdgeInsets(220.0, 80.0, 120.0, 200.0)
-                } else {
-                    EdgeInsets(200.0, 120.0, 200.0, 120.0)
-                }
-
-                // ✅ NUR EINMAL – KEINE Animation
-                if (!viewModel.mapCameraInitialized.value) {
-                    mapView.mapboxMap.setCamera(
-                        mapView.mapboxMap.cameraForCoordinateBounds(
-                            coordinateBounds,
-                            padding
+                    if (items.isEmpty()) {
+                        mapView.mapboxMap.setCamera(
+                            CameraOptions.Builder()
+                                .center(Point.fromLngLat(13.4050, 52.5200)) // Berlin Fallback
+                                .zoom(5.0)
+                                .build()
                         )
-                    )
-                    viewModel.mapCameraInitialized.value = true
+                        mapVisible = true
+                        return@subscribeMapLoaded
+                    }
+
+                    val points = items.map {
+                        Point.fromLngLat(it.longitude!!, it.latitude!!)
+                    }
+
+                    if (points.size == 1) {
+                        mapView.mapboxMap.setCamera(
+                            CameraOptions.Builder()
+                                .center(points.first())
+                                .zoom(14.0)
+                                .build()
+                        )
+                    } else {
+                        val southwest = Point.fromLngLat(
+                            points.minOf { it.longitude() },
+                            points.minOf { it.latitude() }
+                        )
+                        val northeast = Point.fromLngLat(
+                            points.maxOf { it.longitude() },
+                            points.maxOf { it.latitude() }
+                        )
+
+                        val camera = mapView.mapboxMap.cameraForCoordinateBounds(
+                            CoordinateBounds(southwest, northeast),
+                            EdgeInsets(200.0, 200.0, 200.0, 200.0)
+                        )
+
+                        mapView.mapboxMap.setCamera(camera)
+                    }
+
+                    mapVisible = true
                 }
             }
         }

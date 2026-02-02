@@ -1,31 +1,21 @@
 package org.dieschnittstelle.mobile.android.kotlin.skeleton.view
 
 import ListView
-import android.util.Log
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -36,14 +26,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.dieschnittstelle.mobile.android.kotlin.skeleton.MediaAppScreens
-import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.IMediaItemCRUDOperations
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.ImageStorage
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
-import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.createRandomMediaItem
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.viewModel.MainViewMode
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.viewModel.MediaAppViewModel
 
@@ -57,14 +43,9 @@ fun OverviewScreen(
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Log.i("OverviewScreen", "(re)composing")
-
-    val scope = rememberCoroutineScope()
-
 
     val progressDialogShown = viewModel.progressDialogShown
     val actionDialogShown = remember { mutableStateOf(false) }
-
 
     // EIN Dialog für Create + Edit
     val createEditDialogShown = viewModel.createEditDialogShown
@@ -95,68 +76,67 @@ fun OverviewScreen(
         }
     }
 
-
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = Color(0xFF181818),
-            contentColor = Color.White,
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            when (viewModel.mainViewMode.value) {
-                                MainViewMode.MEDIA -> "Medien"
-                                MainViewMode.MAP -> "Karte"
-                            }
+// UI-Bereiche,
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color(0xFF181818),
+        contentColor = Color.White,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        when (viewModel.mainViewMode.value) {
+                            MainViewMode.MEDIA -> "Medien"
+                            MainViewMode.MAP -> "Karte"
+                        }
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = "Menü",
+                            modifier = Modifier.size(48.dp)
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onMenuClick) {
+                    }
+                },
+                actions = {
+                    if (viewModel.mainViewMode.value == MainViewMode.MEDIA) {
+                        IconButton({
+                            viewModel.dialogMode.value = DialogMode.CREATE
+                            viewModel.itemToBeEdited.value = null
+                            viewModel.createEditDialogShown.value = true
+                        }) {
                             Icon(
-                                Icons.Default.Menu,
-                                contentDescription = "Menü",
-                                modifier = Modifier.size(48.dp)
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add",
+                                modifier = Modifier.size(28.dp)
                             )
                         }
-                    },
-                    actions = {
-                        if (viewModel.mainViewMode.value == MainViewMode.MEDIA) {
-                            IconButton({
-                                viewModel.dialogMode.value = DialogMode.CREATE
-                                viewModel.itemToBeEdited.value = null
-                                viewModel.createEditDialogShown.value = true
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Add",
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF2C2C2C),
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White,
-                        actionIconContentColor = Color.White
-                    )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF2C2C2C),
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 )
-            },
-            bottomBar = {
-                BottomAppBar(
-                    containerColor = Color.Black,
-                    tonalElevation = 0.dp
-                ) {
-                    TextButton(
-                        onClick = {
-                            filterMode.value = when (filterMode.value) {
-                                FilterMode.ALL -> FilterMode.LOCAL_ONLY
-                                FilterMode.LOCAL_ONLY -> FilterMode.REMOTE_ONLY
-                                FilterMode.REMOTE_ONLY -> FilterMode.ALL
-                            }
+            )
+        },
+        bottomBar = {
+            BottomAppBar(
+                containerColor = Color.Black,
+                tonalElevation = 0.dp
+            ) {
+                TextButton(
+                    onClick = {
+                        filterMode.value = when (filterMode.value) {
+                            FilterMode.ALL -> FilterMode.LOCAL_ONLY
+                            FilterMode.LOCAL_ONLY -> FilterMode.REMOTE_ONLY
+                            FilterMode.REMOTE_ONLY -> FilterMode.ALL
                         }
-                    ) {
-                      //  Text("FILTER: $label", color = Color.White)
+                    }
+                ) {
 
                     Text(
                         text = when (filterMode.value) {
@@ -166,89 +146,88 @@ fun OverviewScreen(
                         },
                         color = Color.White
                     )
-                    }
-                }
-            },
-        ) { innerPadding ->
-            if (progressDialogShown.value) {
-                ProgressDialog(progressDialogShown)
-            }
-
-            // 3-Punkte Menü (ActionDialog)
-            if (actionDialogShown.value && itemToBeEdited.value != null) {
-                ActionDialog(
-                    actionDialogShown = actionDialogShown,
-                    // NEU: wir öffnen den Editor über createDialogShown + dialogMode
-                    createDialogShown = createEditDialogShown,
-                    dialogMode = dialogMode,
-                    itemToBeEdited = itemToBeEdited.value!!,
-                    viewModel = viewModel,
-                    crudOperations = viewModel.crudOperations
-                )
-            }
-
-            // Create/Edit Dialog (ein Dialog für beides)
-            if (createEditDialogShown.value) {
-                CreateEditMediaItemDialog(
-                    dialogShown = createEditDialogShown,
-                    mode = dialogMode.value,
-                    itemToEdit = if (dialogMode.value == DialogMode.EDIT) itemToBeEdited.value else null,
-                    crudOperations = viewModel.crudOperations,
-                    onCreated = { scrollToEnd.value = true }
-                )
-            }
-
-            // Confirm Dialog
-            if (viewModel.deleteConfirmDialogShown.value &&
-                viewModel.itemToBeEdited.value != null
-            ) {
-                DeleteConfirmDialog(
-                    dialogShown = viewModel.deleteConfirmDialogShown,
-                    item = viewModel.itemToBeEdited.value!!,
-                    onConfirmDelete = {
-                        coroutineScope.launch {
-                            withContext(Dispatchers.IO) {
-                                viewModel.crudOperations
-                                    .deleteItem(viewModel.itemToBeEdited.value!!.id)
-                            }
-
-                            viewModel.deleteConfirmDialogShown.value = false
-                            viewModel.itemToBeEdited.value = null
-                        }
-                    },
-                    onDismiss = {
-                        viewModel.deleteConfirmDialogShown.value = false
-                    }
-                )
-            }
-
-            when (viewModel.mainViewMode.value) {
-                MainViewMode.MEDIA -> {
-                    ListView(
-                        filteredItems,
-                        scrollToEnd,
-                        onSelect = { item, _ ->
-                            navController.navigate(item)
-                        },
-                        onOptions = { item ->
-                            viewModel.itemToBeEdited.value = item
-                            actionDialogShown.value = true
-                        },
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-
-                MainViewMode.MAP -> {
-                    MapScreen(
-                        viewModel,
-                        onMenuClick = onMenuClick,
-                        onSelect = { item, callback ->
-                            navController.navigate(item)
-                            callback(true)
-                        }
-                    )
                 }
             }
-
+        },
+    ) { innerPadding ->
+        if (progressDialogShown.value) {
+            ProgressDialog(progressDialogShown)
         }
+
+        // Optionen-Icon
+        if (actionDialogShown.value && itemToBeEdited.value != null) {
+            ActionDialog(
+                actionDialogShown = actionDialogShown,
+                // NEU: wir öffnen den Editor über createDialogShown + dialogMode
+                createDialogShown = createEditDialogShown,
+                dialogMode = dialogMode,
+                itemToBeEdited = itemToBeEdited.value!!,
+                viewModel = viewModel
+            )
+        }
+
+        // Create/Edit Dialog (ein Dialog für beides)
+        if (createEditDialogShown.value) {
+            CreateEditMediaItemDialog(
+                dialogShown = createEditDialogShown,
+                mode = dialogMode.value,
+                itemToEdit = if (dialogMode.value == DialogMode.EDIT) itemToBeEdited.value else null,
+                crudOperations = viewModel.crudOperations,
+                onCreated = { scrollToEnd.value = true }
+            )
+        }
+
+        // Confirm Dialog Löschen
+        if (viewModel.deleteConfirmDialogShown.value &&
+            viewModel.itemToBeEdited.value != null
+        ) {
+            DeleteConfirmDialog(
+                dialogShown = viewModel.deleteConfirmDialogShown,
+                item = viewModel.itemToBeEdited.value!!,
+                onConfirmDelete = {
+                    coroutineScope.launch {
+                        withContext(Dispatchers.IO) {
+                            viewModel.crudOperations
+                                .deleteItem(viewModel.itemToBeEdited.value!!.id)
+                        }
+
+                        viewModel.deleteConfirmDialogShown.value = false
+                        viewModel.itemToBeEdited.value = null
+                    }
+                },
+                onDismiss = {
+                    viewModel.deleteConfirmDialogShown.value = false
+                }
+            )
+        }
+
+        when (viewModel.mainViewMode.value) {
+            MainViewMode.MEDIA -> {
+                ListView(
+                    filteredItems,
+                    scrollToEnd,
+                    onSelect = { item, _ ->
+                        navController.navigate(item)
+                    },
+                    onOptions = { item ->
+                        viewModel.itemToBeEdited.value = item
+                        actionDialogShown.value = true
+                    },
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
+
+            MainViewMode.MAP -> {
+                MapScreen(
+                    viewModel,
+                    onMenuClick = onMenuClick,
+                    onSelect = { item, callback ->
+                        navController.navigate(item)
+                        callback(true)
+                    }
+                )
+            }
+        }
+
+    }
 }

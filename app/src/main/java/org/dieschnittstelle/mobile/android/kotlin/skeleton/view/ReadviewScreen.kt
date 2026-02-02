@@ -32,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,32 +48,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.IMediaItemCRUDOperations
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
+import org.dieschnittstelle.mobile.android.kotlin.skeleton.viewModel.MediaAppViewModel
 import java.io.File
 import java.io.FileOutputStream
 
-
+// Detail-/Leseansicht (BAS4): zeigt ein MediaItem, erlaubt Bildauswahl (FRM1) und CRUD-Aktionen.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReadviewScreen(
     navController: NavHostController,
     item: MediaItem,
     crudOperations: IMediaItemCRUDOperations,
+    viewModel: MediaAppViewModel,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Log.i("ReadviewScreen", "(re)composing for ${item.title}")
-
-    // um das Bild ändern zu können
+    // Zugriff auf Android Context innerhalb von Compose, z.B. für ContentResolver und Dateisystem.
+    val context = LocalContext.current
+    // UI-State
     val imgScrState = remember { mutableStateOf(item.src) }
     val isDirtyState = remember { mutableStateOf(false) }
-    val context = LocalContext.current
+    val isEditing = remember { mutableStateOf(false) }
 
+    // temporäre Koordinaten (nur im Edit-Modus)
+    val tempLatitude = remember { mutableStateOf(item.latitude) }
+    val tempLongitude = remember { mutableStateOf(item.longitude) }
 
-    //mit rememberLauncherForActivityResult können wir andere Activity aufrufen
+    val showMap = remember {mutableStateOf(true)}
+
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        Log.i("ReadviewScreen", "got $uri")
 
-        // Access file metadata
         val cursor = context.contentResolver.query(uri!!, null, null, null, null)
         var filename = "${System.currentTimeMillis()}.jpg"
         cursor?.use {
@@ -85,6 +90,9 @@ fun ReadviewScreen(
             }
         }
 
+        isEditing.value = true
+        isDirtyState.value = true
+
         // copy the file to the local files directory
         val inputStream = context.contentResolver.openInputStream(uri)
         val file = File(context.filesDir, filename)
@@ -96,14 +104,11 @@ fun ReadviewScreen(
         inputStream?.close()
         outputStream.close()
 
-        Log.i("ReadviewScreen", "successfully copied image to $file")
-
         // context.contentResolver.takePersistableUriPermission(uri!!, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         val localFile = "file://$file"
         imgScrState.value = localFile
-        isDirtyState.value = true
 
-        // --- Standortdaten aus EXIF lesen ---
+        // EXIF-Metadaten: Auslesen von GPS (lat/long), um Standortdaten für Kartenfunktionalität zu nutzen.
         val inputStreamExif = context.contentResolver.openInputStream(uri)
         val exif = inputStreamExif?.let { ExifInterface(it) }
 
@@ -113,18 +118,21 @@ fun ReadviewScreen(
         val baseLng = 13.4050
 
         val offset = (item.id % 10) * 0.001
-
         if (latLong != null) {
-            item.latitude = latLong[0]
-            item.longitude = latLong[1]
+
+            tempLatitude.value = latLong[0]
+            tempLongitude.value = latLong[1]
         } else {
-            // Default-Standort (z. B. Berlin)
-            item.latitude = baseLat + offset
-            item.longitude = baseLng + offset
+            // Default-Standort
+            val baseLat = 52.5200
+            val baseLng = 13.4050
+            val offset = (item.id % 10) * 0.001
+
+            tempLatitude.value = baseLat + offset
+            tempLongitude.value = baseLng + offset
         }
         inputStreamExif?.close()
 
-        item.src = imgScrState.value
     }
 
     val coroutineScope = rememberCoroutineScope()
@@ -144,11 +152,19 @@ fun ReadviewScreen(
                 },
                 title = { Text(item.title) },
                 actions = {
+
                     if (isDirtyState.value) {
                         IconButton({
                             coroutineScope.launch(Dispatchers.IO) {
+                                //beim Speichern übernehmen!
+                                item.src = imgScrState.value
+                                item.latitude = tempLatitude.value
+                                item.longitude = tempLongitude.value
+                                item.createdOrModified = System.currentTimeMillis()
+
                                 crudOperations.updateItem(item.id, item)
                                 coroutineScope.launch(Dispatchers.Main) {
+                                    isEditing.value = false
                                     navController.popBackStack()
                                 }
                             }
@@ -162,9 +178,6 @@ fun ReadviewScreen(
                     }
 
                     IconButton({
-                        // Will damit nur auf Bilder zugreifen
-                        //  pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        //muss so geändert werden
                         pickMedia.launch("image/*")
                     }) {
                         Icon(
@@ -175,13 +188,8 @@ fun ReadviewScreen(
                     }
 
                     IconButton({
-                        Log.i("ReadviewScreen", "deleting ${item.title}")
-                        coroutineScope.launch(Dispatchers.IO) {
-                            crudOperations.deleteItem(item.id)
-                            coroutineScope.launch(Dispatchers.Main) {
-                                navController.popBackStack()
-                            }
-                        }
+                        viewModel.itemToBeEdited.value = item
+                        viewModel.deleteConfirmDialogShown.value = true
                     }) {
                         Icon(
                             imageVector = Icons.Default.Delete,
@@ -198,7 +206,11 @@ fun ReadviewScreen(
                 containerColor = Color.Black,
                 tonalElevation = 0.dp
             ) {
-                IconButton(onClick = { navController.popBackStack() }) {
+                //Um Lifecycle-Problemen zu verhindern
+                IconButton(onClick = {
+                    showMap.value = false
+                    navController.popBackStack()
+                }) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Zurück",
@@ -208,13 +220,33 @@ fun ReadviewScreen(
             }
         }
     ) { innerPadding ->
+        if (viewModel.deleteConfirmDialogShown.value &&
+            viewModel.itemToBeEdited.value != null
+        ) {
+            DeleteConfirmDialog(
+                dialogShown = viewModel.deleteConfirmDialogShown,
+                item = viewModel.itemToBeEdited.value!!,
+                onConfirmDelete = {
+                    coroutineScope.launch(Dispatchers.IO) {
+                        crudOperations.deleteItem(item.id)
+
+                        launch(Dispatchers.Main) {
+                            viewModel.deleteConfirmDialogShown.value = false
+                            navController.popBackStack()
+                        }
+                    }
+                },
+                onDismiss = {
+                    viewModel.deleteConfirmDialogShown.value = false
+                }
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(Color.Black)
                 .verticalScroll(scrollState),
-            //contentAlignment = Alignment.TopCenter
         ) {
             AsyncImage(
                 model = imgScrState.value,
@@ -224,21 +256,27 @@ fun ReadviewScreen(
             )
             // Abstand
             Spacer(modifier = Modifier.height(12.dp))
-            // KARTE – Anforderung 8
-            if (item.latitude != null && item.longitude != null) {
+
+            val currentLat = if (isEditing.value) tempLatitude.value else item.latitude
+            val currentLng = if (isEditing.value) tempLongitude.value else item.longitude
+
+            if (
+                showMap.value &&
+                currentLat != null &&
+                currentLng != null
+            ) {
                 Spacer(modifier = Modifier.padding(8.dp))
-
-                LocationMap(
-                    latitude = item.latitude!!,
-                    longitude = item.longitude!!,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .padding(horizontal = 16.dp)
-                )
+                key(currentLat, currentLng) {
+                    LocationMap(
+                        latitude = currentLat,
+                        longitude = currentLng,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .padding(horizontal = 16.dp)
+                    )
+                }
             }
-
-
         }
     }
 }

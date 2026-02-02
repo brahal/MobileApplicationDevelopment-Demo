@@ -15,10 +15,6 @@ class RemoteMediaUploader(
 ) {
     private val client = OkHttpClient()
 
-    /**
-     * Uploadt content:// Uri als multipart/form-data (field name: filedata)
-     * und gibt die vollständige URL zurück: http://.../content/img/xxx.jpg
-     */
     @Throws(IOException::class)
     fun uploadImage(contentResolver: ContentResolver, uri: Uri): String {
         val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
@@ -48,7 +44,7 @@ class RemoteMediaUploader(
             val json = JSONObject(body)
             val data = json.getJSONObject("data")
 
-            // ✅ Dein Server liefert "filedata" (siehe Server-Log). Fallback auf "upload".
+            // Der Server liefert "filedata" Fallback auf "upload".
             val path = when {
                 data.has("filedata") -> data.getString("filedata")
                 data.has("upload") -> data.getString("upload")

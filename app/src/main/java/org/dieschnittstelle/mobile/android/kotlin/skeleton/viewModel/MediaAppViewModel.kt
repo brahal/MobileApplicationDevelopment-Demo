@@ -2,17 +2,13 @@ package org.dieschnittstelle.mobile.android.kotlin.skeleton.viewModel
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mapbox.maps.CameraOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.IMediaItemCRUDOperations
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
-import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.RoomLocalMediaItemCRUDOperationsImpl
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.SimpleMediaItemCRUDOperationsImpl
-import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.createRandomMediaItem
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.view.DialogMode
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.view.FilterMode
 
@@ -22,33 +18,26 @@ enum class MainViewMode {
     MAP      // Kartenansicht
 }
 
-class MediaAppViewModel: ViewModel() {
+class MediaAppViewModel : ViewModel() {
 
-    // aktueller Hauptmodus
     val mainViewMode = mutableStateOf(MainViewMode.MEDIA)
 
-    // Daten
     val mediaItems = mutableStateListOf<MediaItem>()
 
-    // CRUD
-    var crudOperations: IMediaItemCRUDOperations = SimpleMediaItemCRUDOperationsImpl( mediaItems)
+    var crudOperations: IMediaItemCRUDOperations = SimpleMediaItemCRUDOperationsImpl(mediaItems)
 
-    // Dialog Zustand
     val createEditDialogShown = mutableStateOf(false)
     val dialogMode = mutableStateOf(DialogMode.CREATE)
     val itemToBeEdited = mutableStateOf<MediaItem?>(null)
+
     val progressDialogShown = mutableStateOf(false)
     val deleteConfirmDialogShown = mutableStateOf(false)
-    // Filter
+
     val filterMode = mutableStateOf(FilterMode.ALL)
 
-    // Map
     val selectedMapItem = mutableStateOf<MediaItem?>(null)
 
-    // Map-Zustand
-    var mapCameraInitialized = mutableStateOf(false)
-
-
+    // Daten laden
     fun loadData() {
         progressDialogShown.value = true
         viewModelScope.launch(Dispatchers.IO) {

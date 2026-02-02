@@ -1,12 +1,10 @@
 package org.dieschnittstelle.mobile.android.kotlin.skeleton.view
 
-import android.R
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,7 +27,10 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.*
+import java.io.File
+import java.io.FileOutputStream
 
+// Bestimmt den Modus des Dialogs. Mögliche Zustände des Dialogs: Create: Erstellmodus, Edit: Bearbeitungsmodus
 enum class DialogMode { CREATE, EDIT }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,41 +45,38 @@ fun CreateEditMediaItemDialog(
 ) {
     if (!dialogShown.value) return
 
-    Log.i("CreateEditDialog", "(re)compose mode=$mode item=${itemToEdit?.id}")
-
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Für Upload (nur wenn REMOTE)
+    // Für Upload (REMOTE)
     val uploader = remember { RemoteMediaUploader("http://10.0.2.2:7077") }
 
-    // ---- Initialwerte
+    //  Initialwerte
     val initialTitle = remember(mode, itemToEdit?.id) { itemToEdit?.title.orEmpty() }
     val initialSrc = remember(mode, itemToEdit?.id) { itemToEdit?.src.orEmpty() }
     val initialStorage =
         remember(mode, itemToEdit?.id) { itemToEdit?.imageStorage ?: ImageStorage.LOCAL }
 
+    // Editierbare States
     var title by remember(mode, itemToEdit?.id) { mutableStateOf(initialTitle) }
     var src by remember(mode, itemToEdit?.id) { mutableStateOf(initialSrc) }
     var storage by remember(mode, itemToEdit?.id) { mutableStateOf(initialStorage) }
-
+    // Standortdaten
     var latitude by remember { mutableStateOf<Double?>(null) }
     var longitude by remember { mutableStateOf<Double?>(null) }
 
-    // Wenn REMOTE gewählt wird, brauchen wir für Upload eine lokale URI als Quelle
+    // Image Picker
     var pickedLocalUri by remember(mode, itemToEdit?.id) { mutableStateOf<Uri?>(null) }
 
     var titleError by remember { mutableStateOf(false) }
     var imageError by remember { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) } // App gerade beschäftigt mit Upload
     var uploadError by remember { mutableStateOf<String?>(null) }
 
-
-
     val pickImage = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
+        ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
+        if (uri == null) return@rememberLauncherForActivityResult //  beendet nur den Ergebnis-Callback
 
         // Persistente Berechtigung
         try {
@@ -92,9 +89,6 @@ fun CreateEditMediaItemDialog(
         pickedLocalUri = uri
         imageError = false
 
-        // Vorschau:
-        // - LOCAL: direkt content:// anzeigen
-        // - REMOTE: Vorschau auch lokal anzeigen (content://), Upload passiert erst beim Speichern
         src = uri.toString()
 
         // Standortdaten MAP2
@@ -131,8 +125,6 @@ fun CreateEditMediaItemDialog(
                     )
                     val autoTitle = origfilename.substringBeforeLast(".")
                     title = autoTitle
-
-                    Log.i("CreateEditDialog", "Auto-Titel gesetzt: $autoTitle")
                 }
             }
         }
@@ -181,9 +173,7 @@ fun CreateEditMediaItemDialog(
                     trailingIcon = {
                         IconButton(
                             onClick = {
-                                pickImage.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
+                                pickImage.launch("image/*")
                             }
                         ) {
                             Icon(Icons.Outlined.Image, contentDescription = "Bild auswählen")
@@ -258,7 +248,7 @@ fun CreateEditMediaItemDialog(
                     Text(it, color = Color(0xFFB00020), fontSize = 12.sp)
                 }
 
-                if (busy) {
+                if (isLoading) {
                     Spacer(Modifier.height(10.dp))
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
@@ -282,7 +272,7 @@ fun CreateEditMediaItemDialog(
                     ) { Text("LÖSCHEN") }
 
                     Button(
-                        enabled = !busy,
+                        enabled = !isLoading,
                         onClick = {
                             titleError = title.isBlank()
                             imageError = src.isBlank()
@@ -291,7 +281,7 @@ fun CreateEditMediaItemDialog(
 
                             scope.launch(Dispatchers.IO) {
                                 try {
-                                    busy = true
+                                    isLoading = true
 
                                     if (mode == DialogMode.CREATE) {
                                         val finalSrc = if (storage == ImageStorage.REMOTE) {
@@ -299,7 +289,21 @@ fun CreateEditMediaItemDialog(
                                                 ?: throw IllegalStateException("No pickedLocalUri for remote upload")
                                             uploader.uploadImage(context.contentResolver, localUri)
                                         } else {
-                                            src // content://...
+                                            val inputStream =
+                                                context.contentResolver.openInputStream(
+                                                    pickedLocalUri!!
+                                                )
+                                            val file = File(
+                                                context.filesDir,
+                                                "${System.currentTimeMillis()}.jpg"
+                                            )
+                                            val outputStream = FileOutputStream(file)
+
+                                            inputStream!!.copyTo(outputStream)
+                                            inputStream.close()
+                                            outputStream.close()
+
+                                            "file://${file.absolutePath}"
                                         }
 
                                         val newItem = MediaItem(
@@ -340,7 +344,7 @@ fun CreateEditMediaItemDialog(
                                 } catch (e: Exception) {
                                     uploadError = "Speichern/Upload fehlgeschlagen: ${e.message}"
                                 } finally {
-                                    busy = false
+                                    isLoading = false
                                 }
                             }
                         },

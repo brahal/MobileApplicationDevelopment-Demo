@@ -1,4 +1,3 @@
-import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,22 +25,26 @@ import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.utils.DateUtils
 
 @Composable
-fun ListItemView(myItem: MediaItem, onSelect:(MediaItem, (Boolean)->Unit)->Unit, onOptions:(MediaItem)->Unit, modifier: Modifier = Modifier) {
-    Log.i("ListItemView", "re(composing) for: ${myItem.title} as pos ${myItem.id}")
+fun ListItemView(
+    myItem: MediaItem,
+    onSelect: (MediaItem, (Boolean) -> Unit) -> Unit,
+    onOptions: (MediaItem) -> Unit,
+    modifier: Modifier = Modifier
+) {
 
-    //  val  myItemState = mutableStateOf(myItem)
     val createdOrUpdatedState = mutableStateOf(myItem.createdOrModified)
 
-    Row(modifier = Modifier
-        .clickable(onClick = {
-            onSelect.invoke(myItem) {
-                    updated ->
-                if (updated) {
-                    createdOrUpdatedState.value = myItem.createdOrModified
+    Row(
+        modifier = Modifier
+            .clickable(onClick = {
+                onSelect.invoke(myItem) { updated ->
+                    if (updated) {
+                        createdOrUpdatedState.value = myItem.createdOrModified
+                    }
                 }
-            }
-        }),
-        verticalAlignment = Alignment.CenterVertically) {
+            }),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         AsyncImage(
             model = myItem.src,
             contentDescription = myItem.title,
@@ -56,8 +59,11 @@ fun ListItemView(myItem: MediaItem, onSelect:(MediaItem, (Boolean)->Unit)->Unit,
 
             // FRM2 Anforderung 5
             val badgeText = if (myItem.imageStorage == ImageStorage.REMOTE) "REMOTE" else "LOCAL"
-            val badgeColor = if (myItem.imageStorage == ImageStorage.REMOTE) Color(0xFF1DB954) else Color(0xFF9E9E9E)
-          // Local or Remote anzeige
+            val badgeColor =
+                if (myItem.imageStorage == ImageStorage.REMOTE) Color(0xFF1DB954) else Color(
+                    0xFF9E9E9E
+                )
+            // Local or Remote anzeige
             Text(
                 text = badgeText,
                 fontSize = 10.sp,
@@ -65,14 +71,19 @@ fun ListItemView(myItem: MediaItem, onSelect:(MediaItem, (Boolean)->Unit)->Unit,
                 modifier = Modifier.padding(start = 8.dp)
             )
             Text(DateUtils.formatDate(myItem.createdOrModified), fontSize = 18.sp)
-            Text(createdOrUpdatedState.value.toString(), fontSize = 0.sp, modifier = modifier.height(0.dp))
+            Text(
+                createdOrUpdatedState.value.toString(),
+                fontSize = 0.sp,
+                modifier = modifier.height(0.dp)
+            )
         }
 
         IconButton(onClick = {
             onOptions.invoke(myItem)
         }
         ) {
-            Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Options",
+            Icon(
+                imageVector = Icons.Default.MoreVert, contentDescription = "Options",
                 tint = Color.White,
                 modifier = modifier.size(40.dp)
             )

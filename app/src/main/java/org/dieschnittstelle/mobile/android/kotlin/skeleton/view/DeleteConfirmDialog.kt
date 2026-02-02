@@ -44,7 +44,6 @@ fun DeleteConfirmDialog(
                 horizontalAlignment = Alignment.Start
             ) {
 
-                // ───────── Titel ─────────
                 Text(
                     text = "MEDIUM LÖSCHEN",
                     fontSize = 16.sp,
@@ -59,7 +58,6 @@ fun DeleteConfirmDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // ───────── Beschreibung mit Titel ─────────
                 Text(
                     text = "Möchten Sie das Medium „${item.title}“ wirklich löschen?",
                     fontSize = 14.sp,
@@ -68,7 +66,6 @@ fun DeleteConfirmDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // ───────── Buttons ─────────
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End

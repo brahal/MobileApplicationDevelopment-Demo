@@ -5,8 +5,6 @@ import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
-// var itemCount = 0L
-
 enum class ImageStorage { LOCAL, REMOTE }
 
 @Entity
@@ -21,13 +19,14 @@ class MediaItem(
 ) {
     var createdOrModified = System.currentTimeMillis()
 
+    //id = Primärschlüssel
     @PrimaryKey(autoGenerate = true)
     var id = 0L
 }
 
-//Liefert einen leicht zufälligen Default-Standort
+//Liefert einen zufälligen Default-Standort (Berlin)
 fun randomDefaultLocation(): Pair<Double, Double> {
-    val baseLat = 52.5200   // Berlin
+    val baseLat = 52.5200
     val baseLng = 13.4050
 
     val randomLat = baseLat + Random.nextDouble(-0.05, 0.05)

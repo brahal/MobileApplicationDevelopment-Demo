@@ -9,8 +9,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,9 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
+import com.mapbox.maps.extension.style.expressions.dsl.generated.color
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.IMediaItemCRUDOperations
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.model.MediaItem
 import org.dieschnittstelle.mobile.android.kotlin.skeleton.viewModel.MediaAppViewModel
@@ -32,14 +28,8 @@ fun ActionDialog(
     createDialogShown: MutableState<Boolean>,
     dialogMode: MutableState<DialogMode>,
     itemToBeEdited: MediaItem,
-    viewModel: MediaAppViewModel,
-    crudOperations: IMediaItemCRUDOperations,
-    modifier: Modifier = Modifier
+    viewModel: MediaAppViewModel
 ) {
-
-    // CoroutineScope für asynchrone Operationen
-    val scope = rememberCoroutineScope()
-
 
     // Wenn das Dialog-Flag false ist, wird gar nichts gerendert
     if (!actionDialogShown.value) return
@@ -62,8 +52,7 @@ fun ActionDialog(
                     .padding(start = 12.dp, top = 46.dp)
                     .width(240.dp)
                     .clickable(enabled = false) {}, // Klicks im Menü sollen NICHT den Dialog schließen
-                color = Color(0xFF333333),
-                tonalElevation = 0.dp
+                color = Color(0xFF333333)
             ) {
                 Column {
                     Box(
@@ -73,8 +62,8 @@ fun ActionDialog(
                     ) {
                         Text(
                             text = itemToBeEdited.title,
-                            color = Color(0xFFB0B0B0),
-                            fontSize = 16.sp,
+                            color = Color.White,
+                            fontSize = 20.sp,
                             modifier = Modifier.padding(12.dp)
                         )
                     }
@@ -87,7 +76,7 @@ fun ActionDialog(
 
                     }
 
-                    HorizontalDivider(thickness = 1.dp, color = Color(0xFF404040))
+                    HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
 
                     MenuRow("Editieren") {
                         actionDialogShown.value = false  // Aktionsmenü schließen

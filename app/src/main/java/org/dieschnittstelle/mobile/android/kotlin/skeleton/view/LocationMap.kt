@@ -31,7 +31,6 @@ fun LocationMap(
         }
     }
 
-
     MapboxMap(
         modifier = modifier,
         mapViewportState = mapViewportState
